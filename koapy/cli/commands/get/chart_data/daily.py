@@ -1,3 +1,5 @@
+import pandas as pd
+
 import click
 
 from koapy.cli.utils.fail_with_usage import fail_with_usage
