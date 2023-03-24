@@ -1,3 +1,5 @@
+import pandas as pd
+
 import click
 
 from koapy.cli.utils.fail_with_usage import fail_with_usage
@@ -38,9 +40,9 @@ minute_intervals = [
     "-f",
     "--format",
     metavar="FORMAT",
-    type=click.Choice(["xlsx", "sqlite3"], case_sensitive=False),
-    default="xlsx",
-    help="Output format. (default: xlsx)",
+    type=click.Choice(["csv", "xls", "sqlite3"], case_sensitive=False),
+    default="csv",
+    help="Output format. (default: csv)",
 )
 @click.option(
     "-s",
@@ -84,8 +86,20 @@ def minute(
         context.EnsureConnected()
         df = context.GetMinuteStockDataAsDataFrame(code, interval, start_date, end_date)
 
-    if format == "xlsx":
-        df.to_excel(output)
+    try:
+        df['체결시간'] = pd.to_datetime(df['체결시간'], format="%Y%m%d%H%M%S")
+        df['현재가'] = df['현재가'].astype(int).abs()
+        df['시가'] = df['시가'].astype(int).abs()
+        df['고가'] = df['고가'].astype(int).abs()
+        df['저가'] = df['저가'].astype(int).abs()
+    except Exception as e:
+        print(df, str(e))
+
+    if format == "xls":
+        df.to_excel(output, index=False)
+        logger.info("Saved data to file: %s", output)
+    elif format == "csv":
+        df.to_csv(output, index=False)
         logger.info("Saved data to file: %s", output)
     elif format == "sqlite3":
         from sqlalchemy import create_engine
