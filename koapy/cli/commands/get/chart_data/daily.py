@@ -62,7 +62,7 @@ def daily(
         df = context.GetDailyStockDataAsDataFrame(code, start_date, end_date)
 
     try:
-        df['체결시간'] = pd.to_datetime(df['체결시간'], format="%Y%m%d%H%M%S")
+        df['일자'] = pd.to_datetime(df['일자'], format="%Y%m%d")
         df['현재가'] = df['현재가'].astype(int).abs()
         df['시가'] = df['시가'].astype(int).abs()
         df['고가'] = df['고가'].astype(int).abs()
