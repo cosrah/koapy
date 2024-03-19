@@ -10,6 +10,18 @@ from koapy.utils.rate_limiting.RateLimiter import (
 
 class KiwoomOpenApiPlusCommRqDataRateLimiter(CompositeTimeWindowRateLimiter):
 
+    # [조회횟수 제한 관련]import threading
+import time
+
+from koapy.utils.rate_limiting.RateLimiter import (
+    CompositeTimeWindowRateLimiter,
+    RateLimiter,
+    TimeWindowRateLimiter,
+)
+
+
+class KiwoomOpenApiPlusCommRqDataRateLimiter(CompositeTimeWindowRateLimiter):
+
     # [조회횟수 제한 관련]
     # 단순하게 1초당 5회로 날리다보면 장기적으로 결국 막히기 때문에 기존에는 4초당 1회로 제한했었음 (3초당 1회부턴 제한걸림)
     # 이후 1시간에 1000회로 제한한다는 추측이 있는데 일리 있어 보여서 도입 (http://blog.quantylab.com/htsapi.html)
@@ -68,9 +80,14 @@ class KiwoomOpenApiPlusSendConditionRateLimiter(RateLimiter):
     def check_sleep_seconds(self, fn, *args, **kwargs):
         condition_name = None
         condition_index = None
-        if fn.__name__ == "SendCondition":
-            condition_name = kwargs.get("condition_name", args[1])
-            condition_index = kwargs.get("condition_index", args[2])
+        if callable(fn):
+            if fn.__name__ == "SendCondition":
+                condition_name = kwargs.get("condition_name", args[1])
+                condition_index = kwargs.get("condition_index", args[2])
+        else:
+            if fn == "SendCondition":
+                condition_name = kwargs.get("condition_name", args[1])
+                condition_index = kwargs.get("condition_index", args[2])
         with self._lock:
             sleep_seconds = self._comm_rate_limiter.check_sleep_seconds()
             if condition_name is not None and condition_index is not None:
@@ -80,21 +97,25 @@ class KiwoomOpenApiPlusSendConditionRateLimiter(RateLimiter):
                 sleep_seconds = max(
                     sleep_seconds, limiter_per_condition.check_sleep_seconds()
                 )
-            return sleep_seconds
+            return sleep_seconds if callable(fn) else 0
 
     def add_call_history(self, fn, *args, **kwargs):
-        condition_name = None
-        condition_index = None
-        if fn.__name__ == "SendCondition":
-            condition_name = kwargs.get("condition_name", args[1])
-            condition_index = kwargs.get("condition_index", args[2])
-        with self._lock:
-            self._comm_rate_limiter.add_call_history()
-            if condition_name is not None and condition_index is not None:
-                limiter_per_condition = self.get_limiter_per_condition(
-                    condition_name, condition_index
-                )
-                limiter_per_condition.add_call_history()
+        if callable(fn):
+            if fn.__name__ == "SendCondition":
+                condition_name = kwargs.get("condition_name", args[1])
+                condition_index = kwargs.get("condition_index", args[2])
+                with self._lock:
+                    limiter_per_condition = self.get_limiter_per_condition(
+                        condition_name, condition_index
+                    )
+                    limiter_per_condition.add_call_history()
+            else:
+                with self._lock:
+                    self._comm_rate_limiter.add_call_history()
+        else:
+            with self._lock:
+                self._comm_rate_limiter.add_call_history()
+
 
     def sleep_if_necessary(self, fn, *args, **kwargs):
         with self._lock:

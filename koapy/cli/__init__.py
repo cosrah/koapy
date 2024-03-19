@@ -124,7 +124,7 @@ def login(interactive, disable_auto_login, port):
     "-f",
     "--format",
     metavar="FORMAT",
-    type=click.Choice(["json", "md"], case_sensitive=False),
+    type=click.Choice(["json", "md", "sqlite"], case_sensitive=False),
     default="json",
     help="Output format [json|md].",
 )
@@ -209,7 +209,8 @@ def watch(codes, input, fids, realtype, output, format, port):
 
         def print_message(message):
             click.echo(parse_message(message).to_json(), file=output)
-
+    elif format == "sqlite":
+        pass
     else:
 
         def print_message(message):
